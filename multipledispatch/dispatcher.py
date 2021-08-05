@@ -1,51 +1,8 @@
-from warnings import warn
 import inspect
-from .conflict import ordering, ambiguities, super_signature, AmbiguityWarning
+from .conflict import ordering
 from .utils import expand_tuples
 from .variadic import Variadic, isvariadic
 import itertools as itl
-
-
-class MDNotImplementedError(NotImplementedError):
-    """ A NotImplementedError for multiple dispatch """
-
-
-def ambiguity_warn(dispatcher, ambiguities):
-    """ Raise warning when ambiguity is detected
-
-    Parameters
-    ----------
-    dispatcher : Dispatcher
-        The dispatcher on which the ambiguity was detected
-    ambiguities : set
-        Set of type signature pairs that are ambiguous within this dispatcher
-
-    See Also:
-        Dispatcher.add
-        warning_text
-    """
-    warn(warning_text(dispatcher.name, ambiguities), AmbiguityWarning)
-
-
-def halt_ordering():
-    """Deprecated interface to temporarily disable ordering.
-    """
-    warn(
-        'halt_ordering is deprecated, you can safely remove this call.',
-        DeprecationWarning,
-    )
-
-
-def restart_ordering(on_ambiguity=ambiguity_warn):
-    """Deprecated interface to temporarily resume ordering.
-    """
-    warn(
-        'restart_ordering is deprecated, if you would like to eagerly order'
-        'the dispatchers, you should call the ``reorder()`` method on each'
-        ' dispatcher.',
-        DeprecationWarning,
-    )
-
 
 def variadic_signature_matches_iter(types, full_signature):
     """Check if a set of input types matches a variadic signature.
@@ -256,11 +213,9 @@ class Dispatcher(object):
         except AttributeError:
             return self.reorder()
 
-    def reorder(self, on_ambiguity=ambiguity_warn):
+    def reorder(self):
+        raise Exception(f"Dispatcher.reorder() | I want to deprecate | self = {self}")
         self._ordering = od = ordering(self.funcs)
-        amb = ambiguities(self.funcs)
-        if amb:
-            on_ambiguity(self, amb)
         return od
 
     def __call__(self, *args, **kwargs):
@@ -274,24 +229,8 @@ class Dispatcher(object):
                     'Could not find signature for %s: <%s>' %
                     (self.name, str_signature(types)))
             self._cache[types] = func
-        try:
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
-        except MDNotImplementedError:
-            funcs = self.dispatch_iter(*types)
-            next(funcs)  # burn first
-            for func in funcs:
-                try:
-                    return func(*args, **kwargs)
-                except MDNotImplementedError:
-                    pass
-
-            raise NotImplementedError(
-                "Matching functions for "
-                "%s: <%s> found, but none completed successfully" % (
-                    self.name, str_signature(types),
-                ),
-            )
 
     def __str__(self):
         return "<dispatched %s>" % self.name
@@ -328,7 +267,6 @@ class Dispatcher(object):
             return None
 
     def dispatch_iter(self, *types):
-
         n = len(types)
         for signature in self.ordering:
             if len(signature) == n and all(map(issubclass, types, signature)):
@@ -338,17 +276,6 @@ class Dispatcher(object):
                 if variadic_signature_matches(types, signature):
                     result = self.funcs[signature]
                     yield result
-
-    def resolve(self, types):
-        """ Deterimine appropriate implementation for this type signature
-
-        .. deprecated:: 0.4.4
-            Use ``dispatch(*types)`` instead
-        """
-        warn("resolve() is deprecated, use dispatch(*types)",
-             DeprecationWarning)
-
-        return self.dispatch(*types)
 
     def __getstate__(self):
         return {'name': self.name,
@@ -442,16 +369,3 @@ def str_signature(sig):
     'int, float'
     """
     return ', '.join(cls.__name__ for cls in sig)
-
-
-def warning_text(name, amb):
-    """ The text for ambiguity warnings """
-    text = "\nAmbiguities exist in dispatched function %s\n\n" % (name)
-    text += "The following signatures may result in ambiguous behavior:\n"
-    for pair in amb:
-        text += "\t" + \
-            ', '.join('[' + str_signature(s) + ']' for s in pair) + "\n"
-    text += "\n\nConsider making the following additions:\n\n"
-    text += '\n\n'.join(['@dispatch(' + str_signature(super_signature(s))
-                         + ')\ndef %s(...)' % name for s in amb])
-    return text
