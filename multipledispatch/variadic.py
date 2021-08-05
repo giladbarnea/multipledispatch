@@ -11,19 +11,7 @@ class VariadicSignatureType(type):
         )
 
     def __eq__(self, other):
-        """
-        Return True if other has the same variadic type
-
-        Parameters
-        ----------
-        other : object (type)
-            The object (type) to check
-
-        Returns
-        -------
-        bool
-            Whether or not `other` is equal to `self`
-        """
+        """Return True if other has the same variadic type"""
         return (isvariadic(other) and
                 set(self.variadic_type) == set(other.variadic_type))
 
@@ -32,25 +20,6 @@ class VariadicSignatureType(type):
 
 
 def isvariadic(obj):
-    """Check whether the type `obj` is variadic.
-
-    Parameters
-    ----------
-    obj : type
-        The type to check
-
-    Returns
-    -------
-    bool
-        Whether or not `obj` is variadic
-
-    Examples
-    --------
-    >>> isvariadic(int)
-    False
-    >>> isvariadic(Variadic[int])
-    True
-    """
     return isinstance(obj, VariadicSignatureType)
 
 
@@ -83,12 +52,6 @@ class Variadic(metaclass=VariadicSignatureMeta):
     <class 'multipledispatch.variadic.Variadic[int]'>
     >>> Variadic[(int, str)]  # any number of one of int or str arguments
     <class 'multipledispatch.variadic.Variadic[(int, str)]'>
-    >>> issubclass(int, Variadic[int])
+    >>> issubclass(int, Variadic[int]) and issubclass(int, Variadic[(int, str)])
     True
-    >>> issubclass(int, Variadic[(int, str)])
-    True
-    >>> issubclass(str, Variadic[(int, str)])
-    True
-    >>> issubclass(float, Variadic[(int, str)])
-    False
     """

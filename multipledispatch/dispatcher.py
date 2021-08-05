@@ -5,26 +5,7 @@ from .variadic import Variadic, isvariadic
 import itertools as itl
 
 def variadic_signature_matches_iter(types, full_signature):
-    """Check if a set of input types matches a variadic signature.
-
-    Notes
-    -----
-    The algorithm is as follows:
-
-    Initialize the current signature to the first in the sequence
-
-    For each type in `types`:
-        If the current signature is variadic
-            If the type matches the signature
-                yield True
-            Else
-                Try to get the next signature
-                If no signatures are left we can't possibly have a match
-                    so yield False
-        Else
-            yield True if the type matches the current signature
-            Get the next signature
-    """
+    """Check if a set of input types matches a variadic signature."""
     sigiter = iter(full_signature)
     sig = next(sigiter)
     for typ in types:
@@ -53,27 +34,6 @@ def variadic_signature_matches(types, full_signature):
 
 
 class Dispatcher(object):
-    """ Dispatch methods based on type signature
-
-    Use ``dispatch`` to add implementations
-
-    Examples
-    --------
-
-    >>> from multipledispatch import dispatch
-    >>> @dispatch(int)
-    ... def f(x):
-    ...     return x + 1
-
-    >>> @dispatch(float)
-    ... def f(x):
-    ...     return x - 1
-
-    >>> f(3)
-    4
-    >>> f(3.0)
-    2.0
-    """
     __slots__ = '__name__', 'name', 'funcs', '_ordering', '_cache', 'doc'
 
     def __init__(self, name, doc=None):
@@ -84,30 +44,15 @@ class Dispatcher(object):
         self._cache = {}
 
     def register(self, *types, **kwargs):
-        """ register dispatcher with new implementation
+        """ Register different functions
 
         >>> f = Dispatcher('f')
         >>> @f.register(int)
-        ... def inc(x):
-        ...     return x + 1
+        ... def inc(x): ...
 
         >>> @f.register(float)
-        ... def dec(x):
-        ...     return x - 1
+        ... def dec(x): ...
 
-        >>> @f.register(list)
-        ... @f.register(tuple)
-        ... def reverse(x):
-        ...     return x[::-1]
-
-        >>> f(1)
-        2
-
-        >>> f(1.0)
-        0.0
-
-        >>> f([1, 2, 3])
-        [3, 2, 1]
         """
         def _df(func):
             self.add(types, func, **kwargs)
@@ -122,8 +67,6 @@ class Dispatcher(object):
 
     @classmethod
     def get_func_annotations(cls, func):
-        """ get annotations of function positional parameters
-        """
         params = cls.get_func_params(func)
         if params:
             Parameter = inspect.Parameter
@@ -146,17 +89,6 @@ class Dispatcher(object):
         >>> D = Dispatcher('add')
         >>> D.add((int, int), lambda x, y: x + y)
         >>> D.add((float, float), lambda x, y: x + y)
-
-        >>> D(1, 2)
-        3
-        >>> D(1, 2.0)
-        Traceback (most recent call last):
-        ...
-        NotImplementedError: Could not find signature for add: <int, float>
-
-        When ``add`` detects a warning it calls the ``on_ambiguity`` callback
-        with a dispatcher/itself, and a set of ambiguous type signature pairs
-        as inputs.  See ``ambiguity_warn`` for an example.
         """
         # Handle annotations
         if not signature:
@@ -194,6 +126,7 @@ class Dispatcher(object):
                         'To use a variadic union type place the desired types '
                         'inside of a tuple, e.g., [(int, str)]'
                     )
+                raise Exception(f"Dispatcher.add(sig, func) | I want to deprecate | {self = }, {sig = }, {func = }")
                 new_signature.append(Variadic[typ[0]])
             else:
                 new_signature.append(typ)
@@ -237,27 +170,6 @@ class Dispatcher(object):
     __repr__ = __str__
 
     def dispatch(self, *types):
-        """Deterimine appropriate implementation for this type signature
-
-        This method is internal.  Users should call this object as a function.
-        Implementation resolution occurs within the ``__call__`` method.
-
-        >>> from multipledispatch import dispatch
-        >>> @dispatch(int)
-        ... def inc(x):
-        ...     return x + 1
-
-        >>> implementation = inc.dispatch(int)
-        >>> implementation(3)
-        4
-
-        >>> print(inc.dispatch(float))
-        None
-
-        See Also:
-          ``multipledispatch.conflict`` - module to determine resolution order
-        """
-
         if types in self.funcs:
             return self.funcs[types]
 
@@ -273,6 +185,7 @@ class Dispatcher(object):
                 result = self.funcs[signature]
                 yield result
             elif len(signature) and isvariadic(signature[-1]):
+                raise Exception(f"Dispatcher.dispatch_iter(*types) | I want to deprecate | {self = }, {types = }")
                 if variadic_signature_matches(types, signature):
                     result = self.funcs[signature]
                     yield result
@@ -335,11 +248,7 @@ def source(func):
 
 
 class MethodDispatcher(Dispatcher):
-    """ Dispatch methods based on type signature
-
-    See Also:
-        Dispatcher
-    """
+    """ Dispatch methods based on type signature """
     __slots__ = ('obj', 'cls')
 
     @classmethod
@@ -363,9 +272,4 @@ class MethodDispatcher(Dispatcher):
 
 
 def str_signature(sig):
-    """ String representation of type signature
-
-    >>> str_signature((int, float))
-    'int, float'
-    """
     return ', '.join(cls.__name__ for cls in sig)
